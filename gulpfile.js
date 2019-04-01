@@ -43,6 +43,13 @@ function scripts() {
     .pipe(server.reload({stream: true}));
 };
 
+function fileinclude() {
+  return src('app/*.html')
+    .pipe($.plumber())
+    .pipe($.fileInclude({ prefix: '@@', basepath: '@file' }))
+    .pipe(dest('.tmp'))
+    .pipe(server.reload({stream: true}));
+};
 
 const lintBase = files => {
   return src(files)
@@ -75,6 +82,7 @@ function html() {
       removeScriptTypeAttributes: true,
       removeStyleLinkTypeAttributes: true
     })))
+    .pipe($.if(/\.html$/, $.fileInclude({prefix: '@@', basepath: '@file'})))
     .pipe(dest('dist'));
 }
 
@@ -132,11 +140,12 @@ function startAppServer() {
   });
 
   watch([
-    'app/*.html',
+    'app/**/*.html',
     'app/images/**/*',
     '.tmp/fonts/**/*'
   ]).on('change', server.reload);
-
+  
+  watch('app/**/*.html', fileinclude);
   watch('app/styles/**/*.scss', styles);
   watch('app/scripts/**/*.js', scripts);
   watch('app/fonts/**/*', fonts);
@@ -176,7 +185,8 @@ function startDistServer() {
 
 let serve;
 if (isDev) {
-  serve = series(clean, parallel(styles, scripts, fonts), startAppServer);
+  // required for includes to work
+  serve = series(clean, parallel(fileinclude, styles, scripts, fonts), startAppServer);
 } else if (isTest) {
   serve = series(clean, scripts, startTestServer);
 } else if (isProd) {
