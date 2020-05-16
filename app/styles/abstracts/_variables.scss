@@ -1,8 +1,6 @@
-$breakpoints: (
-  xsmall: 320px,
-  small: 480px,
-  medium: 767px,
-  large:   1024px
-);
+$xsmall: 320px;
+$small: 480px;
+$medium: 767px;
+$large:   1024p;
 $base-padding: 1em;
 $transition: all 0.5s cubic-bezier(0.39, 0.575, 0.565, 1);
