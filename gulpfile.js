@@ -1,4 +1,4 @@
-// generated on 2019-03-31 using generator-webapp 4.0.0-3
+// generated on 2020-05-16 using generator-webapp 4.0.0-8
 const { src, dest, watch, series, parallel, lastRun } = require('gulp');
 const gulpLoadPlugins = require('gulp-load-plugins');
 const browserSync = require('browser-sync');
@@ -17,9 +17,10 @@ const isTest = process.env.NODE_ENV === 'test';
 const isDev = !isProd && !isTest;
 
 function styles() {
-  return src('app/styles/*.scss')
+  return src('app/styles/*.scss', {
+    sourcemaps: !isProd,
+  })
     .pipe($.plumber())
-    .pipe($.if(!isProd, $.sourcemaps.init()))
     .pipe($.sass.sync({
       outputStyle: 'expanded',
       precision: 10,
@@ -28,43 +29,38 @@ function styles() {
     .pipe($.postcss([
       autoprefixer()
     ]))
-    .pipe($.if(!isProd, $.sourcemaps.write()))
-    .pipe(dest('.tmp/styles'))
+    .pipe(dest('.tmp/styles', {
+      sourcemaps: !isProd,
+    }))
     .pipe(server.reload({stream: true}));
 };
 
 function scripts() {
-  return src('app/scripts/**/*.js')
+  return src('app/scripts/**/*.js', {
+    sourcemaps: !isProd,
+  })
     .pipe($.plumber())
-    .pipe($.if(!isProd, $.sourcemaps.init()))
     .pipe($.babel())
-    .pipe($.if(!isProd, $.sourcemaps.write('.')))
-    .pipe(dest('.tmp/scripts'))
+    .pipe(dest('.tmp/scripts', {
+      sourcemaps: !isProd ? '.' : false,
+    }))
     .pipe(server.reload({stream: true}));
 };
 
-function fileinclude() {
-  return src('app/*.html')
-    .pipe($.plumber())
-    .pipe($.fileInclude({ prefix: '@@', basepath: '@file' }))
-    .pipe(dest('.tmp'))
-    .pipe(server.reload({stream: true}));
-};
 
-const lintBase = files => {
+const lintBase = (files, options) => {
   return src(files)
-    .pipe($.eslint({ fix: true }))
+    .pipe($.eslint(options))
     .pipe(server.reload({stream: true, once: true}))
     .pipe($.eslint.format())
     .pipe($.if(!server.active, $.eslint.failAfterError()));
 }
 function lint() {
-  return lintBase('app/scripts/**/*.js')
+  return lintBase('app/scripts/**/*.js', { fix: true })
     .pipe(dest('app/scripts'));
 };
 function lintTest() {
-  return lintBase('test/spec/**/*.js')
-    .pipe(dest('test/spec'));
+  return lintBase('test/spec/**/*.js');
 };
 
 function html() {
@@ -82,7 +78,6 @@ function html() {
       removeScriptTypeAttributes: true,
       removeStyleLinkTypeAttributes: true
     })))
-    .pipe($.if(/\.html$/, $.fileInclude({prefix: '@@', basepath: '@file'})))
     .pipe(dest('dist'));
 }
 
@@ -140,12 +135,11 @@ function startAppServer() {
   });
 
   watch([
-    'app/**/*.html',
+    'app/*.html',
     'app/images/**/*',
     '.tmp/fonts/**/*'
   ]).on('change', server.reload);
-  
-  watch('app/**/*.html', fileinclude);
+
   watch('app/styles/**/*.scss', styles);
   watch('app/scripts/**/*.js', scripts);
   watch('app/fonts/**/*', fonts);
@@ -165,8 +159,8 @@ function startTestServer() {
     }
   });
 
+  watch('test/index.html').on('change', server.reload);
   watch('app/scripts/**/*.js', scripts);
-  watch(['test/spec/**/*.js', 'test/index.html']).on('change', server.reload);
   watch('test/spec/**/*.js', lintTest);
 }
 
@@ -185,8 +179,7 @@ function startDistServer() {
 
 let serve;
 if (isDev) {
-  // required for includes to work
-  serve = series(clean, parallel(fileinclude, styles, scripts, fonts), startAppServer);
+  serve = series(clean, parallel(styles, scripts, fonts), startAppServer);
 } else if (isTest) {
   serve = series(clean, scripts, startTestServer);
 } else if (isProd) {
