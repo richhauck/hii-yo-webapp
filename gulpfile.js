@@ -47,7 +47,6 @@ function scripts() {
     .pipe(server.reload({stream: true}));
 };
 
-
 const lintBase = (files, options) => {
   return src(files)
     .pipe($.eslint(options))
@@ -63,11 +62,19 @@ function lintTest() {
   return lintBase('test/spec/**/*.js');
 };
 
+function fileinclude() {
+  return src('app/*.html')
+    .pipe($.fileInclude({ prefix: '@@', basepath: '@file' }))
+    .pipe(dest('.tmp'))
+    //.pipe(reload({stream: true}));
+};
+
 function html() {
   return src('app/*.html')
     .pipe($.useref({searchPath: ['.tmp', 'app', '.']}))
     .pipe($.if(/\.js$/, $.uglify({compress: {drop_console: true}})))
     .pipe($.if(/\.css$/, $.postcss([cssnano({safe: true, autoprefixer: false})])))
+    /*
     .pipe($.if(/\.html$/, $.htmlmin({
       collapseWhitespace: true,
       minifyCSS: true,
@@ -78,6 +85,8 @@ function html() {
       removeScriptTypeAttributes: true,
       removeStyleLinkTypeAttributes: true
     })))
+    */
+    .pipe($.if(/\.html$/, $.fileInclude({prefix: '@@', basepath: '@file'})))
     .pipe(dest('dist'));
 }
 
@@ -136,10 +145,11 @@ function startAppServer() {
 
   watch([
     'app/*.html',
+    'app/**/*.html',
     'app/images/**/*',
     '.tmp/fonts/**/*'
   ]).on('change', server.reload);
-
+  watch('app/**/*.html', fileinclude);
   watch('app/styles/**/*.scss', styles);
   watch('app/scripts/**/*.js', scripts);
   watch('app/fonts/**/*', fonts);
@@ -179,7 +189,7 @@ function startDistServer() {
 
 let serve;
 if (isDev) {
-  serve = series(clean, parallel(styles, scripts, fonts), startAppServer);
+  serve = series(clean, parallel(fileinclude, styles, scripts, fonts), startAppServer);
 } else if (isTest) {
   serve = series(clean, scripts, startTestServer);
 } else if (isProd) {
